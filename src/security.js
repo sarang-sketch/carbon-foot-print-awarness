@@ -135,8 +135,8 @@ export function buildSafeCsv(headers, rows = []) {
 // ─── JSON Security ──────────────────────────────────────────────────────────────
 
 /**
- * Safely serialize an object to JSON with depth protection.
- * Prevents circular reference errors and limits output size.
+ * Safely serialize an object to JSON with depth and circular reference protection.
+ * Prevents circular reference errors and limits nesting depth.
  *
  * @param {*} data - Data to serialize.
  * @param {number} [maxDepth=10] - Maximum nesting depth.
@@ -144,9 +144,10 @@ export function buildSafeCsv(headers, rows = []) {
  */
 export function safeJsonStringify(data, maxDepth = 10) {
   const seen = new WeakSet();
+  let currentDepth = 0;
 
   /**
-   * Replacer function that prevents circular references.
+   * Replacer function that prevents circular references and enforces depth.
    * @param {string} _key - Property key.
    * @param {*} value - Property value.
    * @returns {*}
@@ -155,6 +156,10 @@ export function safeJsonStringify(data, maxDepth = 10) {
     if (typeof value === 'object' && value !== null) {
       if (seen.has(value)) {
         return '[Circular]';
+      }
+      currentDepth += 1;
+      if (currentDepth > maxDepth) {
+        return '[Max Depth]';
       }
       seen.add(value);
     }

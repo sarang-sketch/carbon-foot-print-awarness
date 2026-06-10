@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { COMPARISON_CONSTANTS, CATEGORY_LABELS } from './config.js';
+import { COMPARISON_CONSTANTS, CATEGORY_LABELS, EMISSION_FACTORS } from './config.js';
 
 // ─── Data Aggregation ───────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ export function analyzeTrend(values) {
   const roundedSlope = Math.round(slope * 100) / 100;
 
   // Determine direction with thresholds
-  const threshold = average(values) * 0.02; // 2% of average
+  const threshold = average(values) * COMPARISON_CONSTANTS.TREND_THRESHOLD_FRACTION;
   let direction = 'stable';
   if (roundedSlope < -threshold) direction = 'improving';
   else if (roundedSlope > threshold) direction = 'increasing';
@@ -169,12 +169,12 @@ export function buildEquivalents(monthlyKg) {
       icon: '🌳',
     },
     carKm: {
-      value: Math.round(monthlyKg / 0.62),
+      value: Math.round(monthlyKg / EMISSION_FACTORS.carKm),
       label: 'Equivalent car km/month',
       icon: '🚗',
     },
     flights: {
-      value: Math.round((monthlyKg / 39) * 10) / 10,
+      value: Math.round((monthlyKg / EMISSION_FACTORS.flightsShort) * 10) / 10,
       label: 'Short flights equivalent',
       icon: '✈️',
     },
@@ -194,12 +194,12 @@ export function buildEquivalents(monthlyKg) {
       icon: '🍔',
     },
     smartphones: {
-      value: Math.round(monthlyKg / 0.008),
+      value: Math.round(monthlyKg / COMPARISON_CONSTANTS.SMARTPHONE_CHARGE_CO2E_KG),
       label: 'Full smartphone charges',
       icon: '📱',
     },
     showers: {
-      value: Math.round(monthlyKg / 0.5),
+      value: Math.round(monthlyKg / COMPARISON_CONSTANTS.SHOWER_CO2E_KG),
       label: '8-min hot showers',
       icon: '🚿',
     },

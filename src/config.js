@@ -65,8 +65,14 @@ export const COMPARISON_CONSTANTS = Object.freeze({
   BURGER_CO2E_KG: 6.5,
   /** kg CO₂e per kWh (for lightbulb calculation) */
   LIGHTBULB_CO2E_PER_KWH: 0.042,
+  /** kg CO₂e per full smartphone charge */
+  SMARTPHONE_CHARGE_CO2E_KG: 0.008,
+  /** kg CO₂e per 8-minute hot shower */
+  SHOWER_CO2E_KG: 0.5,
   /** Months in a year */
   MONTHS_PER_YEAR: 12,
+  /** Trend detection threshold (fraction of average) */
+  TREND_THRESHOLD_FRACTION: 0.02,
 });
 
 // ─── Google Tool Mapping ────────────────────────────────────────────────────────

@@ -30,6 +30,14 @@
 import { GOOGLE_BASE_URLS, CATEGORY_GOOGLE_TOOLS } from './config.js';
 import { sanitizeHtml, encodeUrlParam } from './security.js';
 
+// ─── Time Constants ─────────────────────────────────────────────────────────────
+
+/** @type {number} One day in milliseconds. */
+const ONE_DAY_MS = 86400000;
+
+/** @type {number} One day plus 30 minutes in milliseconds. */
+const ONE_DAY_PLUS_30MIN_MS = 88200000;
+
 // ─── Utility ────────────────────────────────────────────────────────────────────
 
 /**
@@ -116,7 +124,7 @@ export function buildCalendarUrl({
     action: 'TEMPLATE',
     text: sanitizeHtml(title),
     details: sanitizeHtml(details),
-    dates: `${compactDate(start || futureDate(86400000))}/${compactDate(end || futureDate(88200000))}`,
+    dates: `${compactDate(start || futureDate(ONE_DAY_MS))}/${compactDate(end || futureDate(ONE_DAY_PLUS_30MIN_MS))}`,
   });
 
   if (location) {
@@ -137,8 +145,8 @@ export function buildMonthlyReviewUrl(totalKg, topCategory) {
   return buildCalendarUrl({
     title: '🌍 Monthly Carbon Footprint Review',
     details: `Current footprint: ${totalKg} kg CO₂e/month. Top category: ${sanitizeHtml(topCategory)}. Open Carbon Compass to recalculate and update your action plan.`,
-    start: futureDate(86400000),
-    end: futureDate(88200000),
+    start: futureDate(ONE_DAY_MS),
+    end: futureDate(ONE_DAY_PLUS_30MIN_MS),
   });
 }
 
