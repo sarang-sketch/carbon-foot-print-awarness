@@ -20,8 +20,6 @@ import {
   CATEGORY_GOOGLE_TOOLS,
   CATEGORY_COLORS as COLORS,
   GOOGLE_BASE_URLS,
-  LIMITS,
-  STORAGE_KEYS,
 } from './config.js';
 
 import { sanitizeHtml, escapeCsvCell } from './security.js';
@@ -389,118 +387,18 @@ export function getGoogleToolForCategory(category) {
   return CATEGORY_GOOGLE_TOOLS[category] ?? 'Google Search';
 }
 
-// ─── Pledge System ──────────────────────────────────────────────────────────────
+// ─── Re-exports from Storage Module ─────────────────────────────────────────────
+// Consumers (app.js, tests) import these from footprint.js for convenience.
+// The canonical implementation lives in storage.js — no duplication.
 
-/**
- * Load pledges from localStorage.
- * @returns {Array<{id: string, text: string, completed: boolean, createdAt: string}>}
- */
-export function loadPledges() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEYS.PLEDGES);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
+export {
+  loadPledges,
+  savePledges,
+  addPledge,
+  togglePledge,
+  deletePledge,
+  saveToHistory,
+  loadHistory,
+  clearHistory,
+} from './storage.js';
 
-/**
- * Save pledges to localStorage.
- * @param {Array<Object>} pledges - Array of pledge objects.
- */
-export function savePledges(pledges) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.PLEDGES, JSON.stringify(pledges));
-  } catch {
-    // Storage full or unavailable — fail silently
-  }
-}
-
-/**
- * Add a new pledge.
- * @param {string} text - Pledge text.
- * @returns {Object} The new pledge object.
- */
-export function addPledge(text) {
-  const pledges = loadPledges();
-  const pledge = {
-    id: `pledge-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    text: sanitizeText(text),
-    completed: false,
-    createdAt: new Date().toISOString(),
-  };
-  pledges.unshift(pledge);
-  savePledges(pledges);
-  return pledge;
-}
-
-/**
- * Toggle a pledge's completion status.
- * @param {string} id - Pledge ID.
- * @returns {Array<Object>} Updated pledges.
- */
-export function togglePledge(id) {
-  const pledges = loadPledges();
-  const pledge = pledges.find((p) => p.id === id);
-  if (pledge) pledge.completed = !pledge.completed;
-  savePledges(pledges);
-  return pledges;
-}
-
-/**
- * Delete a pledge.
- * @param {string} id - Pledge ID.
- * @returns {Array<Object>} Updated pledges.
- */
-export function deletePledge(id) {
-  const pledges = loadPledges().filter((p) => p.id !== id);
-  savePledges(pledges);
-  return pledges;
-}
-
-// ─── Assessment History ─────────────────────────────────────────────────────────
-
-/**
- * Save an assessment to history.
- * @param {Object} assessment - Assessment data.
- */
-export function saveToHistory(assessment) {
-  try {
-    const history = loadHistory();
-    history.unshift({
-      ...assessment,
-      timestamp: new Date().toISOString(),
-    });
-    // Keep history within configured limit
-    if (history.length > LIMITS.MAX_HISTORY_ENTRIES) {
-      history.length = LIMITS.MAX_HISTORY_ENTRIES;
-    }
-    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
-  } catch {
-    // Storage full — fail silently
-  }
-}
-
-/**
- * Load assessment history from localStorage.
- * @returns {Array<Object>}
- */
-export function loadHistory() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEYS.HISTORY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Clear all assessment history.
- */
-export function clearHistory() {
-  try {
-    localStorage.removeItem(STORAGE_KEYS.HISTORY);
-  } catch {
-    // Fail silently
-  }
-}

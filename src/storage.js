@@ -14,6 +14,14 @@
 import { STORAGE_KEYS, LIMITS } from './config.js';
 import { sanitizeHtml } from './security.js';
 
+// ─── Constants ──────────────────────────────────────────────────────────────────
+
+/** @type {number} Threshold for detecting improvement (5% decrease). */
+const TREND_IMPROVE_FACTOR = 0.95;
+
+/** @type {number} Threshold for detecting increase (5% increase). */
+const TREND_INCREASE_FACTOR = 1.05;
+
 // ─── Core Storage Operations ────────────────────────────────────────────────────
 
 /**
@@ -286,8 +294,8 @@ export function getHistoryStats() {
   if (totals.length >= 2) {
     const newest = totals[0];
     const oldest = totals[totals.length - 1];
-    if (newest < oldest * 0.95) trend = 'improving';
-    else if (newest > oldest * 1.05) trend = 'increasing';
+    if (newest < oldest * TREND_IMPROVE_FACTOR) trend = 'improving';
+    else if (newest > oldest * TREND_INCREASE_FACTOR) trend = 'increasing';
   }
 
   return {
