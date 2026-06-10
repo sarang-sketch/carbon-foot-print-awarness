@@ -13,37 +13,21 @@
  * @license MIT
  */
 
-// ─── Emission Factors (kg CO₂e per unit) ───────────────────────────────────────
-/** @type {Readonly<Record<string, number>>} */
-const FACTORS = Object.freeze({
-  electricityKwh: 0.42,      // Global average grid intensity
-  gasTherms: 5.3,            // Natural gas combustion
-  carKm: 0.62,               // Average passenger vehicle
-  transitKm: 0.02,           // Public transit (bus/metro)
-  flightsShort: 39,          // Short-haul (<1500 km) per flight
-  flightsLong: 260,          // Long-haul (>1500 km) per flight
-  meatMeals: 6.5,            // Red meat meal average
-  dairyMeals: 2,             // Dairy-heavy meal
-  shoppingSpend: 1.0653,     // Embedded emissions per dollar spent
-});
+import {
+  EMISSION_FACTORS,
+  SCORE_THRESHOLDS,
+  COMPARISON_CONSTANTS,
+  CATEGORY_GOOGLE_TOOLS,
+  CATEGORY_COLORS as COLORS,
+  GOOGLE_BASE_URLS,
+  LIMITS,
+  STORAGE_KEYS,
+} from './config.js';
 
-// ─── Google Tool Mapping ────────────────────────────────────────────────────────
-/** @type {Readonly<Record<string, string>>} */
-const GOOGLE_TOOLS = Object.freeze({
-  home: 'Google Home / Nest Renew',
-  transport: 'Google Maps',
-  food: 'Google Search',
-  consumption: 'Google Shopping',
-});
+import { sanitizeHtml, escapeCsvCell } from './security.js';
 
-// ─── Category Colors for Charts ─────────────────────────────────────────────────
-/** @type {Readonly<Record<string, string>>} */
-export const CATEGORY_COLORS = Object.freeze({
-  home: '#34d399',
-  transport: '#60a5fa',
-  food: '#fbbf24',
-  consumption: '#a78bfa',
-});
+// Re-export CATEGORY_COLORS for consumers that depend on this module
+export const CATEGORY_COLORS = COLORS;
 
 // ─── Utility Functions ──────────────────────────────────────────────────────────
 
@@ -68,16 +52,12 @@ function round1(value) {
 
 /**
  * Sanitize user input by stripping HTML tags and control characters.
- * Prevents XSS and injection attacks in rendered content.
+ * Delegates to the security module for defense-in-depth.
  * @param {string} [value=''] - The raw input string.
  * @returns {string} Cleaned, trimmed string.
  */
 export function sanitizeText(value = '') {
-  return String(value)
-    .replace(/<[^>]*>/g, '')
-    .replace(/[\u0000-\u001f\u007f]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return sanitizeHtml(value);
 }
 
 // ─── Core Calculation ───────────────────────────────────────────────────────────
@@ -85,21 +65,31 @@ export function sanitizeText(value = '') {
 /**
  * Calculate monthly carbon footprint from user input.
  * @param {Object} input - User's monthly consumption data.
+ * @param {number} [input.electricityKwh=0] - Monthly electricity in kWh.
+ * @param {number} [input.gasTherms=0] - Monthly natural gas in therms.
+ * @param {number} [input.carKm=0] - Monthly car travel in km.
+ * @param {number} [input.transitKm=0] - Monthly transit travel in km.
+ * @param {number} [input.flightsShort=0] - Short-haul flights per month.
+ * @param {number} [input.flightsLong=0] - Long-haul flights per month.
+ * @param {number} [input.meatMeals=0] - Meat meals per month.
+ * @param {number} [input.dairyMeals=0] - Dairy meals per month.
+ * @param {number} [input.shoppingSpend=0] - Monthly shopping spend in $.
+ * @param {number} [input.household=1] - Household size.
  * @returns {{ totalKg: number, breakdown: Record<string, number>, unit: string, perCapita: number }}
  */
 export function calculateFootprint(input = {}) {
   const home =
-    number(input.electricityKwh) * FACTORS.electricityKwh +
-    number(input.gasTherms) * FACTORS.gasTherms;
+    number(input.electricityKwh) * EMISSION_FACTORS.electricityKwh +
+    number(input.gasTherms) * EMISSION_FACTORS.gasTherms;
   const transport =
-    number(input.carKm) * FACTORS.carKm +
-    number(input.transitKm) * FACTORS.transitKm +
-    number(input.flightsShort) * FACTORS.flightsShort +
-    number(input.flightsLong) * FACTORS.flightsLong;
+    number(input.carKm) * EMISSION_FACTORS.carKm +
+    number(input.transitKm) * EMISSION_FACTORS.transitKm +
+    number(input.flightsShort) * EMISSION_FACTORS.flightsShort +
+    number(input.flightsLong) * EMISSION_FACTORS.flightsLong;
   const food =
-    number(input.meatMeals) * FACTORS.meatMeals +
-    number(input.dairyMeals) * FACTORS.dairyMeals;
-  const consumption = number(input.shoppingSpend) * FACTORS.shoppingSpend;
+    number(input.meatMeals) * EMISSION_FACTORS.meatMeals +
+    number(input.dairyMeals) * EMISSION_FACTORS.dairyMeals;
+  const consumption = number(input.shoppingSpend) * EMISSION_FACTORS.shoppingSpend;
 
   const breakdown = {
     home: round1(home),
@@ -119,11 +109,12 @@ export function calculateFootprint(input = {}) {
 
 /**
  * Classify a total monthly footprint into a sustainability tier.
+ * Uses thresholds from config module for maintainability.
  * @param {number} totalKg - Total monthly emissions in kg CO₂e.
  * @returns {{ rank: string, message: string, color: string, emoji: string }}
  */
 export function classifyScore(totalKg = 0) {
-  if (totalKg <= 350) {
+  if (totalKg <= SCORE_THRESHOLDS.GREEN) {
     return {
       rank: 'Planet Protector',
       message: 'Excellent! Your footprint is well below global average. Keep sharing your habits and mentoring others.',
@@ -131,7 +122,7 @@ export function classifyScore(totalKg = 0) {
       emoji: '🌿',
     };
   }
-  if (totalKg <= 800) {
+  if (totalKg <= SCORE_THRESHOLDS.AMBER) {
     return {
       rank: 'Carbon Climber',
       message: 'Good progress! One focused habit change in your top category can push you into the top tier.',
@@ -160,7 +151,7 @@ function topCategory(breakdown = {}) {
 
 /**
  * Get a sorted ranking of all categories.
- * @param {Record<string, number>} breakdown
+ * @param {Record<string, number>} breakdown - Category emissions object.
  * @returns {Array<{category: string, kg: number, percentage: number}>}
  */
 export function rankCategories(breakdown = {}) {
@@ -178,18 +169,19 @@ export function rankCategories(breakdown = {}) {
 
 /**
  * Convert total emissions into relatable comparison metrics.
+ * Uses named constants from config module to avoid magic numbers.
  * @param {number} totalKg - Monthly emissions in kg CO₂e.
  * @returns {Object} Comparison equivalents.
  */
 export function buildComparisons(totalKg = 0) {
-  const yearlyKg = totalKg * 12;
+  const yearlyKg = totalKg * COMPARISON_CONSTANTS.MONTHS_PER_YEAR;
   return {
-    treesNeeded: Math.ceil(yearlyKg / 22),          // 1 tree absorbs ~22 kg/year
-    equivalentCarKm: Math.round(totalKg / 0.62),     // car km equivalent
-    equivalentFlights: round1(totalKg / 39),          // short flights
-    vsGlobalAverage: `${Math.round((totalKg / 333) * 100)}%`, // 333 kg/month global avg
-    lightbulbHours: Math.round(totalKg / 0.042),      // 100W bulb at 0.42 kg/kWh
-    beefBurgers: Math.round(totalKg / 6.5),           // ~6.5 kg CO₂ per burger
+    treesNeeded: Math.ceil(yearlyKg / COMPARISON_CONSTANTS.TREE_ABSORPTION_KG_YEAR),
+    equivalentCarKm: Math.round(totalKg / EMISSION_FACTORS.carKm),
+    equivalentFlights: round1(totalKg / EMISSION_FACTORS.flightsShort),
+    vsGlobalAverage: `${Math.round((totalKg / COMPARISON_CONSTANTS.GLOBAL_AVERAGE_MONTHLY_KG) * 100)}%`,
+    lightbulbHours: Math.round(totalKg / COMPARISON_CONSTANTS.LIGHTBULB_CO2E_PER_KWH),
+    beefBurgers: Math.round(totalKg / COMPARISON_CONSTANTS.BURGER_CO2E_KG),
   };
 }
 
@@ -258,7 +250,7 @@ const PLAN_LIBRARY = Object.freeze({
 /**
  * Build a personalized action plan based on user profile and footprint.
  * Prioritizes the largest emission category and adapts to user goals.
- * @param {Object} params
+ * @param {Object} params - Parameters for action plan generation.
  * @param {Object} params.profile - User profile with commuteMode and goal.
  * @param {Object} params.footprint - Calculated footprint with breakdown.
  * @returns {Array<Object>} Ordered list of actions.
@@ -304,7 +296,7 @@ export function buildActionPlan({ profile = {}, footprint = {} } = {}) {
 export function buildGoogleMapsTransitUrl(origin = '', destination = '') {
   const safeOrigin = encodeURIComponent(sanitizeText(origin));
   const safeDestination = encodeURIComponent(sanitizeText(destination));
-  return `https://www.google.com/maps/dir/?api=1&origin=${safeOrigin}&destination=${safeDestination}&travelmode=transit`;
+  return `${GOOGLE_BASE_URLS.MAPS}?api=1&origin=${safeOrigin}&destination=${safeDestination}&travelmode=transit`;
 }
 
 /**
@@ -316,9 +308,19 @@ function compactDate(isoString) {
   return new Date(isoString).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
 
+/** @type {number} One day in milliseconds. */
+const ONE_DAY_MS = 86400000;
+
+/** @type {number} 30 minutes in milliseconds. */
+const THIRTY_MINUTES_MS = 1800000;
+
 /**
  * Build a Google Calendar event creation URL.
  * @param {Object} params - Event parameters.
+ * @param {string} [params.title] - Event title.
+ * @param {string} [params.details] - Event description.
+ * @param {string} [params.start] - ISO start time.
+ * @param {string} [params.end] - ISO end time.
  * @returns {string} Calendar URL.
  */
 export function buildGoogleCalendarUrl({ title, details, start, end }) {
@@ -326,9 +328,9 @@ export function buildGoogleCalendarUrl({ title, details, start, end }) {
     action: 'TEMPLATE',
     text: sanitizeText(title || 'Carbon footprint review'),
     details: sanitizeText(details || 'Review footprint dashboard and choose one action.'),
-    dates: `${compactDate(start || new Date().toISOString())}/${compactDate(end || new Date(Date.now() + 1800000).toISOString())}`,
+    dates: `${compactDate(start || new Date().toISOString())}/${compactDate(end || new Date(Date.now() + THIRTY_MINUTES_MS).toISOString())}`,
   });
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  return `${GOOGLE_BASE_URLS.CALENDAR}?${params.toString()}`;
 }
 
 /**
@@ -337,39 +339,30 @@ export function buildGoogleCalendarUrl({ title, details, start, end }) {
  * @returns {string} Google Search URL.
  */
 export function buildGoogleSearchUrl(category = 'transport') {
-  const queries = {
+  /** @type {Readonly<Record<string, string>>} */
+  const queries = Object.freeze({
     home: 'home energy audit tips reduce electricity bill',
     transport: 'low carbon commute alternatives public transit cycling',
     food: 'plant based recipes easy budget friendly sustainable',
     consumption: 'eco friendly sustainable products secondhand alternatives',
-  };
+  });
   const query = queries[category] || queries.transport;
-  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  return `${GOOGLE_BASE_URLS.SEARCH}?q=${encodeURIComponent(query)}`;
 }
 
 // ─── Data Export ────────────────────────────────────────────────────────────────
 
 /**
- * Sanitize a cell value for CSV export, preventing formula injection.
- * @param {*} value - Cell value.
- * @returns {string} Safe CSV cell.
- */
-function csvCell(value) {
-  let text = sanitizeText(value ?? '');
-  if (/^[=+\-@]/.test(text)) text = `'${text}`;
-  return `"${text.replace(/"/g, '""')}"`;
-}
-
-/**
  * Build CSV content for Google Sheets import.
+ * Delegates cell sanitization to the security module.
  * @param {Array<{category: string, kg: number, note: string}>} rows - Data rows.
  * @returns {string} CSV string with headers.
  */
 export function buildGoogleSheetCsv(rows = []) {
   const header = ['category', 'kg', 'note'];
-  const lines = [header.map(csvCell).join(',')];
+  const lines = [header.map(escapeCsvCell).join(',')];
   for (const row of rows) {
-    lines.push(header.map((key) => csvCell(row[key])).join(','));
+    lines.push(header.map((key) => escapeCsvCell(row[key])).join(','));
   }
   return lines.join('\n');
 }
@@ -379,6 +372,8 @@ export function buildGoogleSheetCsv(rows = []) {
 /**
  * Generate a context-aware prompt for Gemini AI carbon coaching.
  * @param {Object} params - Context parameters.
+ * @param {number} [params.totalKg=0] - Monthly CO₂e in kg.
+ * @param {string} [params.topCategory='transport'] - Highest emission category.
  * @returns {string} Gemini prompt.
  */
 export function buildGeminiPrompt({ totalKg = 0, topCategory: category = 'transport' } = {}) {
@@ -391,13 +386,10 @@ export function buildGeminiPrompt({ totalKg = 0, topCategory: category = 'transp
  * @returns {string} Google tool name.
  */
 export function getGoogleToolForCategory(category) {
-  return GOOGLE_TOOLS[category] ?? 'Google Search';
+  return CATEGORY_GOOGLE_TOOLS[category] ?? 'Google Search';
 }
 
 // ─── Pledge System ──────────────────────────────────────────────────────────────
-
-const PLEDGE_STORAGE_KEY = 'carbon-compass-pledges';
-const HISTORY_STORAGE_KEY = 'carbon-compass-history';
 
 /**
  * Load pledges from localStorage.
@@ -405,7 +397,7 @@ const HISTORY_STORAGE_KEY = 'carbon-compass-history';
  */
 export function loadPledges() {
   try {
-    const data = localStorage.getItem(PLEDGE_STORAGE_KEY);
+    const data = localStorage.getItem(STORAGE_KEYS.PLEDGES);
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
@@ -414,11 +406,11 @@ export function loadPledges() {
 
 /**
  * Save pledges to localStorage.
- * @param {Array} pledges - Array of pledge objects.
+ * @param {Array<Object>} pledges - Array of pledge objects.
  */
 export function savePledges(pledges) {
   try {
-    localStorage.setItem(PLEDGE_STORAGE_KEY, JSON.stringify(pledges));
+    localStorage.setItem(STORAGE_KEYS.PLEDGES, JSON.stringify(pledges));
   } catch {
     // Storage full or unavailable — fail silently
   }
@@ -445,7 +437,7 @@ export function addPledge(text) {
 /**
  * Toggle a pledge's completion status.
  * @param {string} id - Pledge ID.
- * @returns {Array} Updated pledges.
+ * @returns {Array<Object>} Updated pledges.
  */
 export function togglePledge(id) {
   const pledges = loadPledges();
@@ -458,7 +450,7 @@ export function togglePledge(id) {
 /**
  * Delete a pledge.
  * @param {string} id - Pledge ID.
- * @returns {Array} Updated pledges.
+ * @returns {Array<Object>} Updated pledges.
  */
 export function deletePledge(id) {
   const pledges = loadPledges().filter((p) => p.id !== id);
@@ -479,9 +471,11 @@ export function saveToHistory(assessment) {
       ...assessment,
       timestamp: new Date().toISOString(),
     });
-    // Keep last 50 assessments max
-    if (history.length > 50) history.length = 50;
-    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+    // Keep history within configured limit
+    if (history.length > LIMITS.MAX_HISTORY_ENTRIES) {
+      history.length = LIMITS.MAX_HISTORY_ENTRIES;
+    }
+    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
   } catch {
     // Storage full — fail silently
   }
@@ -489,11 +483,11 @@ export function saveToHistory(assessment) {
 
 /**
  * Load assessment history from localStorage.
- * @returns {Array}
+ * @returns {Array<Object>}
  */
 export function loadHistory() {
   try {
-    const data = localStorage.getItem(HISTORY_STORAGE_KEY);
+    const data = localStorage.getItem(STORAGE_KEYS.HISTORY);
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
@@ -505,7 +499,7 @@ export function loadHistory() {
  */
 export function clearHistory() {
   try {
-    localStorage.removeItem(HISTORY_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.HISTORY);
   } catch {
     // Fail silently
   }

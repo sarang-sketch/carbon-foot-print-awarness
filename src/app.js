@@ -31,9 +31,48 @@ import {
   togglePledge,
 } from './footprint.js';
 
+import { LIMITS } from './config.js';
+
+// ─── Constants ──────────────────────────────────────────────────────────────────
+
+/** @type {number} Nav height offset for smooth scrolling (in px). */
+const NAV_HEIGHT_PX = 80;
+
+/** @type {number} Counter animation duration (in ms). */
+const COUNTER_ANIMATION_MS = 1000;
+
+/** @type {number} Frame interval for 60fps animation (in ms). */
+const FRAME_INTERVAL_MS = 16;
+
+/** @type {number} Counter animation start delay (in ms). */
+const COUNTER_DELAY_MS = 500;
+
+/** @type {number} Scroll observer bottom margin (in px). */
+const SCROLL_MARGIN_PX = 50;
+
+/** @type {number} One day in milliseconds. */
+const ONE_DAY_MS = 86400000;
+
+/** @type {number} One day plus 30 minutes in milliseconds. */
+const ONE_DAY_PLUS_30MIN_MS = 88200000;
+
+/** @type {number} Maximum history entries to display. */
+const DISPLAY_HISTORY_LIMIT = 10;
+
 // ─── DOM References ─────────────────────────────────────────────────────────────
 
+/**
+ * Query a single DOM element by CSS selector.
+ * @param {string} selector - CSS selector string.
+ * @returns {Element|null}
+ */
 const $ = (selector) => document.querySelector(selector);
+
+/**
+ * Query all DOM elements matching a CSS selector.
+ * @param {string} selector - CSS selector string.
+ * @returns {NodeListOf<Element>}
+ */
 const $$ = (selector) => document.querySelectorAll(selector);
 
 const form = $('#footprint-form');
@@ -62,18 +101,18 @@ const globalValue = $('#global-value');
 const energyValue = $('#energy-value');
 const burgersValue = $('#burgers-value');
 
-/** Latest assessment state */
+/** @type {Object|null} Latest assessment state. */
 let latest = null;
 
-/** Debounce timer */
+/** @type {number|null} Debounce timer ID. */
 let debounceTimer = null;
 
 // ─── Utility Functions ──────────────────────────────────────────────────────────
 
 /**
- * Get a form value by name.
+ * Get a form value by field name.
  * @param {string} name - Form field name.
- * @returns {string}
+ * @returns {string} Field value or empty string.
  */
 function formValue(name) {
   const field = form.elements[name];
@@ -82,7 +121,7 @@ function formValue(name) {
 
 /**
  * Collect all form inputs into a structured object.
- * @returns {Object}
+ * @returns {Object} Structured form data.
  */
 function collectInput() {
   return {
@@ -102,7 +141,7 @@ function collectInput() {
 }
 
 /**
- * Trigger a file download.
+ * Trigger a file download via blob URL.
  * @param {string} filename - Download filename.
  * @param {string} mime - MIME type.
  * @param {string} content - File content.
@@ -118,9 +157,9 @@ function download(filename, mime, content) {
 }
 
 /**
- * Show a toast notification.
+ * Show a toast notification with auto-dismiss.
  * @param {string} message - Toast message.
- * @param {'success'|'info'} type - Toast type.
+ * @param {'success'|'info'} [type='success'] - Toast type.
  */
 function showToast(message, type = 'success') {
   if (!toastContainer) return;
@@ -129,13 +168,13 @@ function showToast(message, type = 'success') {
   toast.textContent = message;
   toast.setAttribute('role', 'alert');
   toastContainer.appendChild(toast);
-  setTimeout(() => toast.remove(), 3500);
+  setTimeout(() => toast.remove(), LIMITS.TOAST_DURATION_MS);
 }
 
 /**
- * Format a number with commas.
- * @param {number} num
- * @returns {string}
+ * Format a number with locale-aware comma separators.
+ * @param {number} num - Number to format.
+ * @returns {string} Formatted number string.
  */
 function formatNumber(num) {
   return num.toLocaleString('en-US');
@@ -144,9 +183,9 @@ function formatNumber(num) {
 // ─── Rendering Functions ────────────────────────────────────────────────────────
 
 /**
- * Render the category breakdown bars.
+ * Render the category breakdown bars as HTML.
  * @param {Object} footprint - Calculated footprint.
- * @returns {string} HTML string.
+ * @returns {string} HTML string for breakdown list items.
  */
 function renderBreakdown(footprint) {
   const ranked = rankCategories(footprint.breakdown);
@@ -165,14 +204,15 @@ function renderBreakdown(footprint) {
 }
 
 /**
- * Render the donut chart SVG.
+ * Render the donut chart as an SVG element.
  * @param {Object} breakdown - Category breakdown.
  * @param {number} totalKg - Total emissions.
  * @returns {string} SVG HTML string.
  */
 function renderDonutChart(breakdown, totalKg) {
   const categories = Object.entries(breakdown);
-  const circumference = 2 * Math.PI * 45;
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
   let offset = 0;
 
   const circles = categories
@@ -180,7 +220,7 @@ function renderDonutChart(breakdown, totalKg) {
       const pct = totalKg > 0 ? kg / totalKg : 0;
       const dashArray = pct * circumference;
       const color = CATEGORY_COLORS[category] || '#34d399';
-      const circle = `<circle cx="50" cy="50" r="45" stroke="${color}" stroke-dasharray="${dashArray} ${circumference - dashArray}" stroke-dashoffset="${-offset}" style="filter: drop-shadow(0 0 4px ${color}40);" />`;
+      const circle = `<circle cx="50" cy="50" r="${radius}" stroke="${color}" stroke-dasharray="${dashArray} ${circumference - dashArray}" stroke-dashoffset="${-offset}" style="filter: drop-shadow(0 0 4px ${color}40);" />`;
       offset += dashArray;
       return circle;
     })
@@ -201,7 +241,7 @@ function renderDonutChart(breakdown, totalKg) {
 }
 
 /**
- * Render comparison metrics.
+ * Render comparison metrics into DOM elements.
  * @param {number} totalKg - Total monthly emissions.
  */
 function renderComparisons(totalKg) {
@@ -215,7 +255,7 @@ function renderComparisons(totalKg) {
 }
 
 /**
- * Render the pledge list.
+ * Render the pledge list from localStorage.
  */
 function renderPledges() {
   if (!pledgeList) return;
@@ -239,7 +279,7 @@ function renderPledges() {
 }
 
 /**
- * Render assessment history.
+ * Render assessment history list.
  */
 function renderHistory() {
   if (!historyList) return;
@@ -251,7 +291,7 @@ function renderHistory() {
   }
 
   historyList.innerHTML = history
-    .slice(0, 10) // Show last 10
+    .slice(0, DISPLAY_HISTORY_LIMIT)
     .map(
       (entry) => `
       <div class="card" style="padding: 1rem 1.5rem;">
@@ -331,8 +371,8 @@ function update() {
     calendarLink.href = buildGoogleCalendarUrl({
       title: 'Carbon footprint review',
       details: `Review ${footprint.totalKg} kg CO2e footprint and action plan. Top category: ${topCat}.`,
-      start: new Date(Date.now() + 86400000).toISOString(),
-      end: new Date(Date.now() + 88200000).toISOString(),
+      start: new Date(Date.now() + ONE_DAY_MS).toISOString(),
+      end: new Date(Date.now() + ONE_DAY_PLUS_30MIN_MS).toISOString(),
     });
   }
 
@@ -364,10 +404,11 @@ function update() {
 
 /**
  * Debounced version of update for real-time form changes.
+ * Uses LIMITS.DEBOUNCE_MS from config for consistency.
  */
 function debouncedUpdate() {
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(update, 150);
+  debounceTimer = setTimeout(update, LIMITS.DEBOUNCE_MS);
 }
 
 // ─── Event Listeners ────────────────────────────────────────────────────────────
@@ -450,12 +491,13 @@ clearHistoryBtn?.addEventListener('click', () => {
 // ─── Scroll Animations (Intersection Observer) ──────────────────────────────────
 
 /**
- * Initialize scroll-triggered fade-in animations.
+ * Initialize scroll-triggered fade-in animations using IntersectionObserver.
  */
 function initScrollAnimations() {
+  /** @type {IntersectionObserverInit} */
   const observerOptions = {
     threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px',
+    rootMargin: `0px 0px -${SCROLL_MARGIN_PX}px 0px`,
   };
 
   const observer = new IntersectionObserver((entries) => {
@@ -467,7 +509,7 @@ function initScrollAnimations() {
     });
   }, observerOptions);
 
-  // Add fade-in class to sections
+  // Add fade-in class to animatable sections
   const sections = $$('section, .card, .feature-card, .insight-card, .quality-grid article, .stat-item, .tip-card');
   sections.forEach((el) => {
     el.classList.add('fade-in');
@@ -478,7 +520,7 @@ function initScrollAnimations() {
 // ─── Smooth Nav Scroll ──────────────────────────────────────────────────────────
 
 /**
- * Add smooth scrolling to nav links with offset for fixed nav.
+ * Add smooth scrolling to nav links with offset for fixed navigation.
  */
 function initSmoothScroll() {
   $$('nav a[href^="#"]').forEach((link) => {
@@ -487,8 +529,7 @@ function initSmoothScroll() {
       const target = document.querySelector(href);
       if (target) {
         event.preventDefault();
-        const offset = 80; // nav height
-        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        const top = target.getBoundingClientRect().top + window.scrollY - NAV_HEIGHT_PX;
         window.scrollTo({ top, behavior: 'smooth' });
       }
     });
@@ -498,13 +539,12 @@ function initSmoothScroll() {
 // ─── Keyboard Accessibility ─────────────────────────────────────────────────────
 
 /**
- * Add keyboard support for interactive elements.
+ * Add global keyboard support for interactive elements.
  */
 function initKeyboardSupport() {
-  // Allow Enter/Space on card-like clickable elements
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      // Close any open modals or toasts
+      // Dismiss all active toast notifications
       const toasts = $$('.toast');
       toasts.forEach((t) => t.remove());
     }
@@ -514,7 +554,7 @@ function initKeyboardSupport() {
 // ─── Mouse Glow Effect ──────────────────────────────────────────────────────────
 
 /**
- * Track mouse position for glow effect on cards.
+ * Track mouse position for interactive glow effect on cards.
  */
 function initMouseGlow() {
   document.addEventListener('mousemove', (event) => {
@@ -531,23 +571,22 @@ function initMouseGlow() {
 // ─── Counter Animation ──────────────────────────────────────────────────────────
 
 /**
- * Animate stat counter values.
+ * Animate stat counter values with a counting-up effect.
  */
 function animateCounters() {
   $$('.stat-value').forEach((el) => {
     const target = el.textContent;
-    if (target.includes('+')) return; // Skip "12+"
+    if (target.includes('+')) return; // Skip compound values like "12+"
     const num = parseInt(target, 10);
     if (isNaN(num)) return;
 
     let current = 0;
-    const duration = 1000;
-    const step = Math.ceil(num / (duration / 16));
+    const step = Math.ceil(num / (COUNTER_ANIMATION_MS / FRAME_INTERVAL_MS));
     const timer = setInterval(() => {
       current = Math.min(current + step, num);
       el.textContent = current;
       if (current >= num) clearInterval(timer);
-    }, 16);
+    }, FRAME_INTERVAL_MS);
   });
 }
 
@@ -564,5 +603,5 @@ initSmoothScroll();
 initKeyboardSupport();
 initMouseGlow();
 
-// Animate counters after a short delay
-setTimeout(animateCounters, 500);
+// Animate counters after a short delay for visual effect
+setTimeout(animateCounters, COUNTER_DELAY_MS);

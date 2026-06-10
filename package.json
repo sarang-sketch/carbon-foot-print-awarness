@@ -4,7 +4,7 @@
   "description": "AI-powered carbon footprint awareness platform with 12+ Google tool integrations. Estimates monthly CO₂e, ranks impact categories, and generates personalized action plans.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/footprint.test.js tests/google-tools.test.js tests/security.test.js tests/validators.test.js tests/analytics.test.js tests/accessibility.test.js",
+    "test": "node --test tests/footprint.test.js tests/google-tools.test.js tests/security.test.js tests/validators.test.js tests/analytics.test.js tests/accessibility.test.js tests/storage.test.js",
     "start": "node scripts/serve.mjs",
     "size": "node scripts/check-size.mjs",
     "lint": "node --check src/footprint.js && node --check src/app.js && node --check tests/footprint.test.js && node --check scripts/serve.mjs && node --check scripts/check-size.mjs",
@@ -24,13 +24,13 @@
     "eco-friendly",
     "green-tech"
   ],
-  "author": "",
+  "author": "sarang-sketch",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/carbon-footprint-awareness-platform"
+    "url": "https://github.com/sarang-sketch/carbon-foot-print-awarness"
   }
 }

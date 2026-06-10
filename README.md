@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Tests-182_Passing-34d399?style=flat-square&logo=checkmarx&logoColor=white" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-213_Passing-34d399?style=flat-square&logo=checkmarx&logoColor=white" alt="Tests" />
   <img src="https://img.shields.io/badge/Dependencies-Zero-34d399?style=flat-square&logo=npm&logoColor=white" alt="Dependencies" />
-  <img src="https://img.shields.io/badge/Size-261_KB-34d399?style=flat-square&logo=files&logoColor=white" alt="Size" />
+  <img src="https://img.shields.io/badge/Size-281_KB-34d399?style=flat-square&logo=files&logoColor=white" alt="Size" />
   <img src="https://img.shields.io/badge/WCAG-AA_Compliant-34d399?style=flat-square&logo=w3c&logoColor=white" alt="WCAG" />
   <img src="https://img.shields.io/badge/License-MIT-34d399?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="License" />
   <img src="https://img.shields.io/badge/Google_Tools-15+-34d399?style=flat-square&logo=google&logoColor=white" alt="Google Tools" />
@@ -40,7 +40,7 @@
 - [Data Flow](#-data-flow)
 - [Evaluation Focus Areas](#-evaluation-focus-areas)
 - [Module Map](#-module-map)
-- [Testing](#-testing-182-tests)
+- [Testing](#-testing-213-tests)
 - [Security](#-security)
 - [Accessibility](#-accessibility-wcag-21-aa)
 - [Getting Started](#-getting-started)
@@ -66,7 +66,7 @@
 ║   🌱 Pledge & History Tracking    →  longitudinal progress       ║
 ║   ♿ WCAG 2.1 AA Compliant        →  inclusive design            ║
 ║   🛡️ Defense-in-Depth Security    →  XSS, CSV injection safe    ║
-║   🧪 182 Unit Tests               →  6 test suites              ║
+║   🧪 213 Unit Tests               →  7 test suites              ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
@@ -198,6 +198,7 @@ carbon-footprint-awareness-platform/
 ├── 🤝 CONTRIBUTING.md          # Coding standards & guidelines
 ├── 📜 LICENSE                  # MIT License
 ├── 🚫 .gitignore               # Git ignore rules
+├── 🔧 .eslintrc.json           # ESLint code quality configuration
 │
 ├── src/                        # ── Source Modules ──────────────
 │   ├── 📐 config.js            # Constants, thresholds, URLs, limits
@@ -211,10 +212,11 @@ carbon-footprint-awareness-platform/
 │   ├── 🎨 styles.css           # Design system (CSS variables)
 │   └── 🖥️ app.js               # UI controller (DOM, events)
 │
-├── tests/                      # ── Test Suites ────────────────
+├── tests/                      # ── Test Suites (213 total) ────
 │   ├── 🧪 footprint.test.js    # 45 tests — calculations
 │   ├── 🧪 google-tools.test.js # 38 tests — URL builders
 │   ├── 🧪 security.test.js     # 33 tests — sanitization
+│   ├── 🧪 storage.test.js      # 31 tests — data persistence
 │   ├── 🧪 validators.test.js   # 30 tests — validation
 │   ├── 🧪 analytics.test.js    # 25 tests — statistics
 │   └── 🧪 accessibility.test.js# 21 tests — WCAG contrast
@@ -424,7 +426,7 @@ sequenceDiagram
 ### 4. Testing 🧪
 
 ```
-✅ 182 unit tests — ALL PASSING
+✅ 213 unit tests — ALL PASSING
 ✅ 6 dedicated test suites
 ✅ Edge cases: null, undefined, NaN, Infinity, empty strings
 ✅ Security tests: XSS, URL injection, CSV injection
@@ -468,10 +470,10 @@ sequenceDiagram
 
 ---
 
-## 🧪 Testing (182 Tests)
+## 🧪 Testing (213 Tests)
 
 ```bash
-npm test    # Runs all 6 test suites
+npm test    # Runs all 7 test suites
 ```
 
 | Test Suite | Tests | Coverage Area |
@@ -482,7 +484,8 @@ npm test    # Runs all 6 test suites
 | `validators.test.js` | **30** | Numeric/text validation, range checking, compound form validator |
 | `analytics.test.js` | **25** | Statistics (avg, median, σ), trend regression, report generation |
 | `accessibility.test.js` | **21** | Hex-to-RGB, luminance, contrast ratio, WCAG AA verification |
-| **Total** | **182** | **All passing ✅** |
+| `storage.test.js` | **31** | Core CRUD, pledge lifecycle, history tracking, preferences, limits |
+| **Total** | **213** | **All passing ✅** |
 
 ### What's Tested
 
@@ -491,6 +494,7 @@ pie title Test Distribution by Area
     "Core Engine" : 45
     "Google Tools" : 38
     "Security" : 33
+    "Storage" : 31
     "Validators" : 30
     "Analytics" : 25
     "Accessibility" : 21
@@ -558,7 +562,7 @@ node scripts/serve.mjs
 ### Commands
 
 ```bash
-npm test          # Run all 182 tests
+npm test          # Run all 213 tests
 npm start         # Start development server
 npm run size      # Check repository size (< 10 MB)
 npm run validate  # Lint + test + size check

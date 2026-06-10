@@ -53,7 +53,7 @@ src/
 
 ### Running Tests
 ```bash
-npm test           # Run all 182 tests
+npm test           # Run all 213 tests
 npm run validate   # Lint + test + size check
 ```
 
